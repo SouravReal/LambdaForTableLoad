@@ -3,7 +3,8 @@ db_name = ["aananda_lakshmi", "abbnew", "abbottind", "abbpower_projectssil", "ac
 
 table_name = ["all_benpos", "alldiv", "alldiv_bank", "benmast", "certno1", "certno2", "certno3", "certno4", "certno5", "certno6", "cs_cerdet", "cs_tran", "ddmast", "dividend_f15g_master", "dividend_master", "ecsrejmast", "holder_phone", "holder1", "holder10", "holder12", "holder2", "holder3", "holder4", "holder4_nonall", "holder5", "holder6", "holder7", "holder9", "iepf_alldiv", "Iepf_alldiv_bank", "Iepf_benmast", "iepf_claim_master", "iepf_claim_master_dividend", "iepf_claim_master_shares", "iepf_final_master", "LockinMast", "nominee", "nominee_opt_out", "ns_cerdet", "ns_tran", "paid_tran", "PledgeMast", "post_cl5a_mast", "postcert", "postretn", "queryrlmast", "querytran1", "querytran2", "querytran3", "querytran4", "querytran5", "querytran6", "querytran7", "querytran8", "refund", "webdiff", "webmis"]
 
-def load_table_from_s3_to_athena(bucket_name, object_key, table_name):
+def load_table_from_s3_to_athena(bucket_name, object_key, db_nam, columns_final):
+  table_name = db_nam+"_"+object_key
   """Loads a table from S3 to Athena.
 
   Args:
@@ -12,18 +13,17 @@ def load_table_from_s3_to_athena(bucket_name, object_key, table_name):
     table_name: The name of the Athena table to load the data into.
   """
 
-  client = boto3.client("athena")
+  ath_client = boto3.client("athena")
 
   # Create the Athena query to load the data.
   query = """
     CREATE EXTERNAL TABLE {table_name}
     (
-      column1 string,
-      column2 string,
-      column3 string
+      {columns_final}
     )
     STORED AS PARQUET
-    LOCATION 's3://{bucket_name}/{object_key}'
+    LOCATION 'bucket_name'
+    TBLPROPERTIES ('skip.header.line.count'='1')
   """.format(
       table_name=table_name,
       bucket_name=bucket_name,
@@ -31,11 +31,34 @@ def load_table_from_s3_to_athena(bucket_name, object_key, table_name):
   )
 
   # Run the Athena query.
-  client.start_query_execution(QueryExecutionId=query)
+  ath_client.start_query_execution(QueryExecutionId=query)
+
+def initial_step_s3():
+  s3_client = boto3.client("s3")
+  bucket = ["s3://kfintech-crg-landing/fl/corpreg/"+db+"/dbo/" for db in db_name ]
+  for bn in bucket:
+    db_nam = ''
+
+    for dbn in db_name:
+      if dbn in bn:
+        db_nam = dbn
+    
+    object_list = s3_client.list_objects(Bucket = bn)
+    for obj in object_list:
+      object_data = obj["Body"].read().decode("utf-8")
+      columns = object_data.split(",")[0:-1] #here the columns variable contains list of all the columns in the particular table
+      columns_string = "\""
+      for ele in columns:
+        columns_string += ele+"\" string, \n\"" #here the columns name are stored like how it should be in the create table command with a trailing , and an enter element
+      
+      columns_final = columns_string[:-4]
+
+      load_table_from_s3_to_athena(bn, obj, db_nam, columns_final)
+
 
 if __name__ == "__main__":
-  bucket_name = "my-bucket"
-  object_key = "my-table.parquet"
-  table_name = "my_table"
-
-  load_table_from_s3_to_athena(bucket_name, object_key, table_name)
+  initial_step_s3()
+  # bucket_name = "my-bucket"
+  # object_key = "my-table.parquet"
+  # table_name = "my_table"
+  # load_table_from_s3_to_athena(bucket_name, object_key, table_name)
