@@ -33,20 +33,11 @@ def load_table_from_s3_to_athena(bucket_name, object_key, db_nam, columns_final)
   # Run the Athena query.
   ath_client.start_query_execution(QueryExecutionId=query)
 
-<<<<<<< HEAD
-if __name__ == "__main__":
-  for d in db_name:
-    for t in table_name:
-      bucket_name = "my-bucket"
-      object_key = "my-table.parquet"
-      table_name = "my_table"
-=======
 def initial_step_s3():
   s3_client = boto3.client("s3")
   bucket = ["s3://kfintech-crg-landing/fl/corpreg/"+db+"/dbo/" for db in db_name ]
   for bn in bucket:
     db_nam = ''
->>>>>>> 9c3d720983280a5c6cad7a7000571496824ce1f8
 
     for dbn in db_name:
       if dbn in bn:
@@ -70,4 +61,4 @@ if __name__ == "__main__":
   # bucket_name = "my-bucket"
   # object_key = "my-table.parquet"
   # table_name = "my_table"
-  # load_table_from_s3_to_athena(bucket_name, object_key, table_name)``
+  # load_table_from_s3_to_athena(bucket_name, object_key, table_name)
